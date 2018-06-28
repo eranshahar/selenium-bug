@@ -35,16 +35,15 @@ import static org.assertj.core.api.Java6Assertions.fail;
 public class SeleniumBug {
 
     private static final Logger logger = LoggerFactory.getLogger(SeleniumBug.class);
-    public static final String SELENIUM_VERSION = "3.6.0";
 
+    private static final String SELENIUM_VERSION = "3.6.0";
     private static GenericContainer seleniumContainer;
 
     @BeforeClass
-    public static void beforeClass() throws InterruptedException {
+    public static void beforeClass() {
         seleniumContainer = new GenericContainer("selenium/standalone-chrome:" + SELENIUM_VERSION);
         seleniumContainer.withFileSystemBind("/tmp", "/images", BindMode.READ_WRITE);
         seleniumContainer.start();
-        TimeUnit.SECONDS.sleep(5);
     }
 
     @AfterClass
@@ -53,11 +52,11 @@ public class SeleniumBug {
     }
 
     @Test
-    public void testAlerts() throws InterruptedException {
+    public void reproduceSeleniumBug() throws InterruptedException {
         int cycleCounter = 1;
         while (true) {
             logger.info("Cycle number: {}", cycleCounter++);
-            Map<Long, String> images = new ConcurrentHashMap();
+            Map<Long, String> images = new ConcurrentHashMap<>();
             LongAdder nThreads = new LongAdder();
             File imagesDir = new File("/tmp");
             nThreads.add(20);
@@ -65,7 +64,6 @@ public class SeleniumBug {
             ExecutorService executorService = Executors.newFixedThreadPool(nThreads.intValue());
             IntStream.range(1, nThreads.intValue() + 1).forEach(i ->
                     executorService.execute(() -> {
-//                        try {
                         URL htmlUrl = createHtml(i, imagesDir.toPath(), countDownLatch);
                         if (htmlUrl != null) {
                             try {
@@ -99,18 +97,16 @@ public class SeleniumBug {
                     "<html lang=\"en\">\n" +
                     "<head>\n" +
                     "    <meta charset=\"UTF-8\">\n" +
-                    "    <title>Eran</title>\n" +
+                    "    <title>Eran Shahar</title>\n" +
                     "</head>\n" +
                     "<body>\n" +
-                    "Eran%s%s%s%s%s\n" +
+                    "Eran Shahar %s\n" +
                     "</body>\n" +
                     "</html>";
             String fileName = "/" + accountId + "." + "html";
             String filePath = path.toAbsolutePath() + fileName;
             File htmlFile = new File(filePath);
-            FileUtils.write(htmlFile, String.format(html, accountId + "-" + RandomStringUtils.randomAlphanumeric(accountId),
-                    RandomStringUtils.randomAlphanumeric(accountId), RandomStringUtils.randomAlphanumeric(accountId),
-                    RandomStringUtils.randomAlphanumeric(accountId), RandomStringUtils.randomAlphanumeric(accountId)), Charsets.UTF_8);
+            FileUtils.write(htmlFile, String.format(html, accountId + "-" + RandomStringUtils.randomAlphanumeric(accountId)), Charsets.UTF_8);
             URL urlToHtml = new File("/images" + fileName).toURI().toURL();
             logger.info("urlToHtml: {}", urlToHtml);
             return urlToHtml;
@@ -122,7 +118,6 @@ public class SeleniumBug {
         }
     }
 
-    @SuppressWarnings("Duplicates")
     URL createImage(URL htmlUrl, int accountId, Path path, Map images) throws Exception {
         RemoteWebDriver webDriver = null;
         try {
@@ -141,7 +136,6 @@ public class SeleniumBug {
             byte[] screenshotAs = webDriver.getScreenshotAs(OutputType.BYTES);
             FileUtils.writeByteArrayToFile(new File(imgPath), screenshotAs);
             URL urlToImage = new File(imgPath).toURI().toURL();
-//            URL url = uploadFileToS3andGetUrl(accountId, accountId, imgPath);
             Checksum checksum = new CRC32();
             checksum.update(screenshotAs, 0, screenshotAs.length);
             long checksumValue = checksum.getValue();
